@@ -6,13 +6,54 @@ var obj = parse(xml);
 //Array of alternating <tr role="row" class="odd parent"> and  <tr class="child">
 let trArray = Array.from(obj.root.children);
 
-num = 0;
-trArray.forEach(element => {
-    //Get all table rows that contain separated payment info for each payment period
-    var myChildElement = (element.name=='tr' && element.attributes.class=='child') ? element.children[0] : null;
-    if(myChildElement) { num = num + 1; console.log(extractSeparatedPaymentInfo(myChildElement, num)) };
+var finalArray = [];
+var finalOverviewArray = [];
+var finalSeparatedPaymentArray = [];
+
+function loop(){ 
     
-});
+    trArray.forEach(element => {
+    
+        // var element = trArray[0]; //for testing
+        var overViewElementsArray = (element.name=='tr' && element.attributes.class.includes('parent')) ? element.children : null;
+
+        //Get all table rows that contain separated payment info for each payment period
+        // element = trArray[1]; //for testing
+        var myChildElement = (element.name=='tr' && element.attributes.class=='child') ? element.children[0] : null;
+        
+        if(overViewElementsArray) { finalOverviewArray.push(extractOverviewInformation(overViewElementsArray)) };
+        if(myChildElement) { finalSeparatedPaymentArray.push(extractSeparatedPaymentInfo(myChildElement)) };
+        
+    });
+}
+
+function consolidateDB(){
+    
+    length = finalOverviewArray.length == finalSeparatedPaymentArray.length ? finalSeparatedPaymentArray.length : -1;
+    
+    if(length>-1){
+        for(let i = 0; i < length; i++){
+            finalSeparatedPaymentArray[i].period = finalOverviewArray[i].date;
+            finalOverviewArray[i].details = finalSeparatedPaymentArray[i];
+        }
+    }
+
+    console.log(JSON.stringify(finalOverviewArray));
+}
+
+function extractOverviewInformation(overViewElementsArray){
+    overViewElement = { date:'', paymentTotal: '', appliedPrincipal:'', appliedInterest:'', totalBalance:'', details: {}}
+    overViewElementsArray.forEach(element => {
+
+        if(element.attributes.class.includes('date')) overViewElement.date = element.content.trim();
+        if(element.attributes.class.includes('total')) overViewElement.paymentTotal = element.content.trim();
+        if(element.attributes.class.includes('principal')) overViewElement.appliedPrincipal = element.content.trim();
+        if(element.attributes.class.includes('interest')) overViewElement.appliedInterest = element.content.trim();
+        if(element.attributes.class.includes('balance')) overViewElement.totalBalance = element.content.trim();
+    });
+
+    return overViewElement;
+}
 
 function extractSeparatedPaymentInfo(childElement, printThisNumber){
 
@@ -58,6 +99,9 @@ function extractLoanContainerInfo(loanContainerElement){
 
     return loanBody;
 }
+
+loop();
+consolidateDB();
 
 //For testing purposes according to file unt4.xml
 // console.log('CORRECT trArray: '+trArray.length); //26
